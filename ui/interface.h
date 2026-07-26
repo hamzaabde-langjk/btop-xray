@@ -4,36 +4,28 @@
 #include <stdbool.h>
 #include <X11/Xlib.h>
 
-typedef struct SimpleUI {
-    Display *display;
-    Window window;
+typedef struct {
+    Display *dpy;
+    Window win;
     GC gc;
     int width;
     int height;
-    void *shm_data;
-    bool running;
+    void *data;
     int selected_pid;
-    int window_ready;
     int scroll_offset;
-    int detail_mode;
     int header_height;
     int footer_height;
     int row_height;
     int padding;
-    int corner_radius;
-    XFontStruct *font;
-    XFontStruct *font_bold;
-    int font_height;
-} SimpleUI;
+} UIState;
 
-typedef struct UIInterface {
-    void (*update)(void *ui);
-    void (*render)(void *ui);
-    void (*destroy)(void *ui);
-    void *data;
+typedef struct {
+    void (*render)(void *state);
+    void (*destroy)(void *state);
+    UIState *state;
 } UIInterface;
 
-UIInterface* ui_create(void *renderer, void *shm_data, const char *filter);
+UIInterface* ui_create(void *shm_data);
 void ui_destroy(UIInterface *ui);
 
 #endif

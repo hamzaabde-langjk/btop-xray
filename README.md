@@ -1,29 +1,4 @@
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black">
-  <img src="https://img.shields.io/badge/C-00599C?style=for-the-badge&logo=c&logoColor=white">
-  <img src="https://img.shields.io/badge/X11-00599C?style=for-the-badge&logo=x11&logoColor=white">
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge">
-</p>
-<br>
-
-
-
-<p align="center">
-  <img src="xray-screenshot.png" alt="XRAY-SCOPE Main Interface" width="800">
-  <br>
-  <em>XRAY-SCOPE Main Interface - Real-time process monitoring</em>
-</p>
-
-<br>
-
-<p align="center">
-  <img src="xray-gui.png" alt="XRAY-SCOPE Process View" width="800">
-  <br>
-  <em>Detailed process view with CPU and memory usage</em>
-</p>
-
-<br>
 
 #  XRAY-SCOPE v1.0 - Real-Time System Monitor
 
@@ -120,8 +95,12 @@ cd xray-scope
 
 ##  Detailed Build Instructions
 
+<<<<<<< HEAD
 ``` bash
 xray-scope/
+=======
+**xray-scope/
+>>>>>>> 4a50d51 (Update: XRAY-SCOPE v1.0 - Major UI improvements)
 ├── src/
 │   ├── main.c              # Main entry point
 │   ├── engine/
@@ -140,8 +119,12 @@ xray-scope/
 │       └── ring_buffer.c   # Ring buffer implementation
 ├── build.sh                # Build script
 ├── dist/                   # Output directory
+<<<<<<< HEAD
 └── README.md               # This file 
 ```
+=======
+└── README.md               # This file **
+>>>>>>> 4a50d51 (Update: XRAY-SCOPE v1.0 - Major UI improvements)
 
 ## Step 2: Build Each Component
 A. Build Shared Memory Module
