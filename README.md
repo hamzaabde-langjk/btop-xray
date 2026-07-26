@@ -121,7 +121,7 @@ cd xray-scope
 ##  Detailed Build Instructions
 
 ``` bash
-**xray-scope/
+xray-scope/
 ├── src/
 │   ├── main.c              # Main entry point
 │   ├── engine/
@@ -140,7 +140,7 @@ cd xray-scope
 │       └── ring_buffer.c   # Ring buffer implementation
 ├── build.sh                # Build script
 ├── dist/                   # Output directory
-└── README.md               # This file **
+└── README.md               # This file 
 ```
 
 ## Step 2: Build Each Component
