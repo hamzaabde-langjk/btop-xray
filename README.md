@@ -1,12 +1,28 @@
-
+<br>
 
 #  XRAY-SCOPE v1.0 - Real-Time System Monitor
 
-**XRAY-SCOPE** is a powerful, real-time system monitoring tool for Linux with a beautiful resizeable GUI.
+**XRAY-SCOPE** is a powerful, real-time system monitoring tool for Linux with a beautiful resizeable GUI featuring a large, easy-to-read interface.
 
 ---
 
-## Preview
+##  Screenshots
+
+<p align="center">
+  <img src="xray-screenshot.png" alt="XRAY-SCOPE Main Interface" width="85%">
+  <br>
+  <b>XRAY-SCOPE Main Interface</b> - Real-time process monitoring with dark theme
+</p>
+
+
+<br>
+
+<p align="center">
+  <img src="xray-gui.png" alt="XRAY-SCOPE Detailed View" width="85%">
+  <br>
+  <b>Detailed Process View</b> - CPU, memory, state, threads, and command line
+</p>
+
 
 ---
 
@@ -16,13 +32,17 @@
 | --------------------------- | ------------------------------------------------------ |
 | **Resizeable Window**       | Drag to resize, table adapts automatically             |
 | **Live Process Monitoring** | Real-time updates of all system processes              |
+| **Large Font (40px)**       | Easy to read from a distance                           |
+| **Memory-based Sorting**    | Processes sorted by highest memory usage               |
+| **Color-coded Memory**      | Green (<1GB), Orange (1-5GB), Red (>5GB)               |
 | **CPU Progress Bars**       | Visual bars showing CPU usage per process              |
 | **Color-coded States**      | RUN=Green, SLP=Blue, ZMB=Orange, STP=Red               |
 | **Process Details**         | PID, User, Name, CPU%, Memory, State, Threads, Command |
 | **Click to Select**         | Click any row to select and highlight a process        |
-| **Keyboard Controls**       | Up/Down scroll, D for details, Q to quit               |
+| **Settings Panel**          | Toggle Sleep Mode and Dark/Light Theme                 |
+| **Scrollbar**               | Easy navigation through process list                   |
+| **Keyboard Controls**       | Up/Down scroll, Q to quit                              |
 | **Low Memory Usage**        | ~50MB RAM footprint                                    |
-| **High Performance**        | 60 FPS rendering with low CPU overhead                 |
 
 ---
 
@@ -37,242 +57,246 @@ sudo apt-get update
 sudo apt-get install -y build-essential gcc make pkg-config \
     libx11-dev libxcb-dev libxrandr-dev libxinerama-dev \
     libxcursor-dev libxi-dev
-    
 ```
 
-**Fedora/RHEL:**
+Fedora/RHEL:
 
 ```bash
-   sudo dnf install -y gcc make pkgconfig \
-   libX11-devel libXcb-devel libXrandr-devel \
+sudo dnf install -y gcc make pkgconfig \
+    libX11-devel libXcb-devel libXrandr-devel \
     libXinerama-devel libXcursor-devel libXi-devel
+
 ```
 
-**Arch Linux:**
+Arch Linux:
 
-```bash 
+```bash
 sudo pacman -S gcc make pkg-config \
     libx11 libxcb libxrandr libxinerama \
     libxcursor libxi
+Runtime Requirements
+Linux kernel 2.6+ (any distribution)
 ```
 
-## Runtime Requirements
-* Linux kernel 2.6+ (any distribution)
+
 
 **X11 server (for GUI mode)**
 
-**50MB free RAM**
 
-**5MB disk space**
 
-# Clone and build in one command
+Quick Installation
+One-Command Build & Run (Easiest)
+
 ```bash
-git clone  https://github.com/hamzaabde-langjk/btop-xray.git && \
-cd xray-scope && \
-chmod +x build.sh && \
-./build.sh && \
+git clone https://github.com/hamzaabde-langjk/btop-xray.git && \
+cd btop-xray && \
+chmod +x scripts/build.sh && \
+./scripts/build.sh && \
 ./dist/xray_final
+Step-by-Step Build
+bash
 ```
+
+
 
 # 1. Clone the repository
+
 git clone https://github.com/hamzaabde-langjk/btop-xray.git
-cd xray-scope
+cd btop-xray
 
 # 2. Build the project
+
 ```bash
-./build.sh
+chmod +x scripts/build.sh
+./scripts/build.sh
 ```
 
+# 3. Run the application
 
-
-# 3. Run the application	
-```bash
+```bash 
 ./dist/xray_final
-
 ```
 
 
 
-##  Detailed Build Instructions
+Manual Build (Advanced)
 
-<<<<<<< HEAD
-``` bash
-xray-scope/
-=======
-**xray-scope/
->>>>>>> 4a50d51 (Update: XRAY-SCOPE v1.0 - Major UI improvements)
-├── src/
-│   ├── main.c              # Main entry point
-│   ├── engine/
-│   │   ├── adapter.h       # Engine interface
-│   │   └── polling.c       # Polling monitoring engine
-│   ├── gfx/
-│   │   ├── renderer.h      # Renderer interface
-│   │   └── renderer.c      # X11 renderer
-│   ├── ui/
-│   │   ├── interface.h     # GUI interface
-│   │   └── interface.c     # GUI implementation
-│   └── shared/
-│       ├── shm.h           # Shared memory interface
-│       ├── shm.c           # Shared memory implementation
-│       ├── ring_buffer.h   # Ring buffer interface
-│       └── ring_buffer.c   # Ring buffer implementation
-├── build.sh                # Build script
-├── dist/                   # Output directory
-<<<<<<< HEAD
-└── README.md               # This file 
-```
-=======
-└── README.md               # This file **
->>>>>>> 4a50d51 (Update: XRAY-SCOPE v1.0 - Major UI improvements)
+### If you prefer to build manually:
 
-## Step 2: Build Each Component
-A. Build Shared Memory Module
+# Build Shared Memory
+
 ```bash
 gcc -O2 -c src/shared/shm.c -o shm.o -I.
-What it does: Compiles the shared memory module
 ```
 
-* Flags: -O2 for optimization, -c to compile only, -I. for include path
+# Build Ring Buffer
 
-Output: shm.o object file
-
-B. Build Ring Buffer
 ```bash
 gcc -O2 -c src/shared/ring_buffer.c -o ring.o -I.
-What it does: Compiles the circular ring buffer for event storage
 ```
 
+# Build Renderer
 
-
-Output: ring.o object file
-
-C. Build Renderer (Graphics)
 ```bash
 gcc -O2 -c src/gfx/renderer.c -o renderer.o -I.
-What it does: Compiles the X11 renderer for GUI
 ```
 
+# Build GUI Interface
 
-
-Output: renderer.o object file
-
-D. Build GUI Interface
 ```bash
 gcc -O2 -c src/ui/interface.c -o interface.o -I. -Isrc/ui -Isrc/shared -I/usr/include/X11 -lm
-What it does: Compiles the GUI interface with X11 support
 ```
 
+# Build Polling Engine
 
-
-Flags: -I/usr/include/X11 for X11 headers, -lm for math library
-
-Output: interface.o object file
-
-E. Build Polling Engine (Shared Library)
 ```bash
 gcc -O2 -fPIC -shared -o polling.so src/engine/polling.c -lm -lpthread -I.
-What it does: Compiles the polling monitoring engine as a shared library
 ```
 
+# Build Main Program
 
-
-Flags: -fPIC for position-independent code, -shared for shared library, -lpthread for threading
-
-Output: polling.so shared library
-
-F. Build Main Program
-```bash
+```bash 
 gcc -O2 -c src/main.c -o main.o -I. -Isrc/engine -Isrc/shared -Isrc/ui -Isrc/gfx
-What it does: Compiles the main program entry point
 ```
 
+# Link Everything
 
-
-Output: main.o object file
-
-G. Link Everything Together
 ```bash
 gcc -O2 -o xray main.o shm.o ring.o renderer.o interface.o -lm -lpthread -ldl -lX11
-What it does: Links all object files into the final executable
 ```
 
+# Create Distribution
 
-
-Libraries: -lX11 for X11, -lpthread for threading, -ldl for dynamic loading
-
-Output: xray executable
-
-## Step 3: Create Distribution Package
-
-
-# Create dist directory
-
-```bash
+```
 mkdir -p dist
-```
-
-# Copy executable
-```bash
 cp xray dist/xray_final
-```
-
-# Make it executable
-```bash 
 chmod +x dist/xray_final
-```
-
-# Copy the engine library
-```bash
 cp polling.so dist/
 ```
 
+**🏗️ Project Structure**
 
-
-##  Step 5: Make Build Script Executable
-
-```bash
-chmod +x build.sh
+```text
+btop-xray/
+├── README.md              # This file
+├── scripts/
+│   └── build.sh           # Build script
+├── src/
+│   ├── main.c             # Main entry point
+│   ├── engine/
+│   │   ├── adapter.h      # Engine interface
+│   │   └── polling.c      # Polling monitoring engine
+│   ├── gfx/
+│   │   ├── renderer.h     # Renderer interface
+│   │   └── renderer.c     # X11 renderer
+│   ├── ui/
+│   │   ├── interface.h    # GUI interface
+│   │   └── interface.c    # GUI implementation
+│   └── shared/
+│       ├── shm.h          # Shared memory interface
+│       ├── shm.c          # Shared memory implementation
+│       ├── ring_buffer.h  # Ring buffer interface
+│       └── ring_buffer.c  # Ring buffer implementation
+└── dist/                  # Output directory
+    ├── xray_final         # Final executable
+    └── polling.so         # Polling engine library
+🎮 How to Use
+Basic Usage
+bash
 ```
 
-## Basic Usage
 
-```bash
+
 # Run with GUI (default)
+
 ./dist/xray_final
 
 # Run in headless mode (terminal only)
+
+```text
 ./dist/xray_final --headless
+Keyboard Shortcuts
+Key	Action
+q or ESC	Quit the application
+↑ (Up Arrow)	Scroll up through process list
+↓ (Down Arrow)	Scroll down through process list
+Click on row	Select a process (highlighted in blue)
+Settings Panel (Click the "Settings" button)
+Setting	Description
+Sleep Mode	Toggle ON/OFF - Slower updates to save CPU
+Theme	Switch between Dark and Light mode
+What You See
+The GUI displays:
+
+Header Bar - Application name, version, current time, Settings button
+
+Stats Bar - Total processes, User, Theme, Sorting method
+
+Process Table:
+
+PID: Process ID
+
+USER: Owner of the process
+
+PROCESS: Process name
+
+CPU%: CPU usage with visual progress bar
+
+MEM(MB): Memory usage in MB (color-coded)
+
+STATE: Process state (color-coded)
+
+THREADS: Number of threads
+
+COMMAND: Full command line (truncated)
+
+Scrollbar - For navigating long process lists
+
+Footer - Total processes, visible range, keyboard shortcuts
 ```
+
+
 
 ## Process States Color Guide
 
-``` python
-State	Color	Meaning
+```python
+State	Color	    Meaning
 #RUN	🟢 Green	Process is currently running
-#SLP	🔵 Blue	Process is sleeping/interruptible
+#SLP	🔵 Blue	    Process is sleeping/interruptible
 #DSK	🟣 Purple	Process is in disk sleep
 #ZMB	🟠 Orange	Process is zombie/defunct
-#STP	🔴 Red	Process is stopped/traced
-
+#STP	🔴 Red	    Process is stopped/traced
 ```
 
-## Troubleshooting
 
-**Error: shmget: Invalid argument**
+
+## Memory Usage Color Guide
+
+```python
+Memory	  Color
+#< 1GB	  🟢 Green
+#1-5GB	  🟠 Orange
+#> 5GB	  🔴 Red
+```
+
+
+
+> ## Troubleshooting
+>
+> Error: shmget: Invalid argument
+> bash
 
 # Remove old shared memory segments
 
 ```bash
-ipcrm -M 0x58415259
+ipcrm -M 0x58415259 2>/dev/null || true
 ```
-
-
 
 # Rebuild and run
 
 ```bash
 rm -rf dist *.o *.so xray
-./build.sh
+./scripts/build.sh
 ./dist/xray_final
 ```
+
