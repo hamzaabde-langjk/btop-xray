@@ -1,0 +1,443 @@
+/**
+ * XRAY-SCOPE v1.0 - Omniscient Lens
+ * نظام مراقبة متكامل لأنظمة Linux
+ * 
+ * حقوق النشر 2026 - المشروع مفتوح المصدر
+ * 
+ * الترجمة: gcc -O2 -o xray main.c -lm -lpthread -ldl -lzstd -lxcb -lX11 -lvulkan
+ */
+
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <signal.h>
+#include <getopt.h>
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdatomic.h>
+
+#include "engine/adapter.h"
+#include "gfx/renderer.h"
+#include "ui/interface.h"
+#include "shared/shm.h"
+#include "shared/ring_buffer.h"
+
+/* ============================
+   إعدادات النظام
+   ============================ */
+
+#define VERSION "1.0"
+#define PROJECT_NAME "XRAY-SCOPE"
+#define MAX_ENGINES 3
+#define DEFAULT_SHM_KEY 0x58415259  /* "XRAY" */
+
+/* ============================
+   بنيات البيانات الأساسية
+   ============================ */
+
+typedef struct {
+    char name[64];
+    int pid;
+    int ppid;
+    char cmdline[256];
+    char cwd[256];
+    char state;
+    long cpu_usage;
+    long memory_usage;
+    unsigned long long io_read;
+    unsigned long long io_write;
+    int connections[32];
+    int conn_count;
+    uint64_t inodes[64];
+    int inode_count;
+    double latitude;    /* للإحداثيات على الكرة الأرضية */
+    double longitude;
+    uint64_t last_update;
+} ProcessInfo;
+
+typedef struct {
+    uint64_t timestamp;
+    uint32_t pid;
+    uint32_t event_type;  /* 1=read, 2=write, 3=open, 4=connect, 5=accept */
+    uint64_t inode;
+    char path[256];
+    char remote_ip[16];
+    uint16_t remote_port;
+    uint64_t bytes_transferred;
+} SystemEvent;
+
+typedef struct {
+    uint64_t magic;           /* 0x58415259 "XRAY" */
+    uint32_t version;
+    uint32_t num_processes;
+    uint32_t num_events;
+    uint64_t timestamp;
+    ProcessInfo processes[4096];
+    SystemEvent events[16384];
+    uint32_t process_count;
+    uint32_t event_count;
+    atomic_flag lock;
+    char reserved[1024];
+} SharedMemoryHeader;
+
+/* ============================
+   المتغيرات العامة
+   ============================ */
+
+static volatile bool running = true;
+static SharedMemoryHeader *shm = NULL;
+static RingBuffer *ring = NULL;
+static EngineAdapter *engine = NULL;
+static Renderer *renderer = NULL;
+static UIInterface *ui = NULL;
+
+/* ============================
+   دالات مساعدة
+   ============================ */
+
+static void signal_handler(int sig) {
+    (void)sig;
+    running = false;
+    fprintf(stderr, "\n⏹️  إيقاف التشغيل...\n");
+}
+
+static void print_banner(void) {
+    printf("\n");
+    printf("╔══════════════════════════════════════════════════════════════════╗\n");
+    printf("║  ██╗  ██╗██████╗  █████╗ ██╗   ██╗      ███████╗ ██████╗ ██████╗ ██████╗ ███████╗ ║\n");
+    printf("║  ╚██╗██╔╝██╔══██╗██╔══██╗╚██╗ ██╔╝      ██╔════╝██╔═══██╗██╔══██╗██╔══██╗██╔════╝ ║\n");
+    printf("║   ╚███╔╝ ██████╔╝███████║ ╚████╔╝       ███████╗██║   ██║██████╔╝██████╔╝█████╗   ║\n");
+    printf("║   ██╔██╗ ██╔══██╗██╔══██║  ╚██╔╝        ╚════██║██║   ██║██╔═══╝ ██╔══██╗██╔══╝   ║\n");
+    printf("║  ██╔╝ ██╗██║  ██║██║  ██║   ██║         ███████║╚██████╔╝██║     ██║  ██║███████╗ ║\n");
+    printf("║  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝         ╚══════╝ ╚═════╝ ╚═╝     ╚═╝  ╚═╝╚══════╝ ║\n");
+    printf("║                                                                                      ║\n");
+    printf("║  🌍 Omniscient Lens v%s - رؤية كل بايت، في كل مكان، في لحظة واحدة  ║\n", VERSION);
+    printf("╚══════════════════════════════════════════════════════════════════╝\n");
+    printf("\n");
+}
+
+static void print_help(void) {
+    printf("الاستخدام: xray [خيارات]\n\n");
+    printf("الخيارات:\n");
+    printf("  --help, -h           عرض هذه المساعدة\n");
+    printf("  --version, -v        عرض رقم الإصدار\n");
+    printf("  --engine <name>      فرض محرك معين (ebpf, netlink, polling)\n");
+    printf("  --nogpu              تعطيل GPU واستخدام العارض البرمجي\n");
+    printf("  --obsidian           فتح واجهة Obsidian-only (بدون كرة أرضية)\n");
+    printf("  --headless           وضع الخادم (بدون عرض، فقط تسجيل)\n");
+    printf("  --filter <expr>      تصفية العمليات (مثال: PID>1000)\n");
+    printf("  --shm-key <hex>      مفتاح الذاكرة المشتركة (سداسي عشري)\n");
+    printf("\n");
+    printf("الأمثلة:\n");
+    printf("  ./xray                    # تشغيل عادي\n");
+    printf("  ./xray --engine ebpf      # استخدام eBPF\n");
+    printf("  ./xray --nogpu --headless # وضع خادم بدون عرض\n");
+    printf("\n");
+}
+
+/* ============================
+   دالة اكتشاف المحرك المناسب
+   ============================ */
+
+static EngineAdapter* detect_engine(const char *forced_engine) {
+    EngineAdapter *engines[MAX_ENGINES] = {NULL};
+    int count = 0;
+    
+    /* محاولة تحميل المحركات بالترتيب */
+    const char *engine_names[] = {"ebpf", "netlink", "polling"};
+    const char *engine_files[] = {"ebpf.so", "netlink.so", "polling.so"};
+    
+    /* إذا كان هناك محرك مفروض */
+    if (forced_engine) {
+        for (int i = 0; i < MAX_ENGINES; i++) {
+            if (strcmp(forced_engine, engine_names[i]) == 0) {
+                void *handle = dlopen(engine_files[i], RTLD_NOW);
+                if (handle) {
+                    EngineAdapter *adapter = (EngineAdapter*)dlsym(handle, "adapter");
+                    if (adapter && adapter->init()) {
+                        printf("✅ استخدام المحرك المطلوب: %s\n", engine_names[i]);
+                        return adapter;
+                    }
+                }
+                fprintf(stderr, "❌ فشل تحميل المحرك المطلوب: %s\n", forced_engine);
+                return NULL;
+            }
+        }
+        fprintf(stderr, "❌ محرك غير معروف: %s\n", forced_engine);
+        return NULL;
+    }
+    
+    /* اكتشاف تلقائي: جرب eBPF أولاً */
+    printf("🔍 اكتشاف المحرك المناسب...\n");
+    
+    /* 1. محاولة eBPF (يتطلب نواة 5.8+) */
+    void *handle = dlopen("ebpf.so", RTLD_NOW);
+    if (handle) {
+        EngineAdapter *adapter = (EngineAdapter*)dlsym(handle, "adapter");
+        if (adapter && adapter->init()) {
+            printf("✅ استخدام محرك eBPF (أسرع محرك)\n");
+            return adapter;
+        }
+        dlclose(handle);
+    }
+    
+    /* 2. محاولة Netlink */
+    handle = dlopen("netlink.so", RTLD_NOW);
+    if (handle) {
+        EngineAdapter *adapter = (EngineAdapter*)dlsym(handle, "adapter");
+        if (adapter && adapter->init()) {
+            printf("✅ استخدام محرك Netlink (متوسط السرعة)\n");
+            return adapter;
+        }
+        dlclose(handle);
+    }
+    
+    /* 3. الملاذ الأخير: Polling */
+    handle = dlopen("polling.so", RTLD_NOW);
+    if (handle) {
+        EngineAdapter *adapter = (EngineAdapter*)dlsym(handle, "adapter");
+        if (adapter && adapter->init()) {
+            printf("✅ استخدام محرك Polling (بطيء لكن يعمل دائماً)\n");
+            return adapter;
+        }
+        dlclose(handle);
+    }
+    
+    fprintf(stderr, "❌ فشل تحميل أي محرك!\n");
+    return NULL;
+}
+
+/* ============================
+   دالة جمع البيانات
+   ============================ */
+
+static void* collect_data_thread(void *arg) {
+    (void)arg;
+    
+    while (running && engine) {
+        /* جلب الأحداث من المحرك */
+        SystemEvent events[256];
+        int count = engine->poll_events(events, 256);
+        
+        if (count > 0) {
+            /* قفل الذاكرة المشتركة */
+            while (atomic_flag_test_and_set(&shm->lock));
+            
+            for (int i = 0; i < count && shm->event_count < 16384; i++) {
+                shm->events[shm->event_count++] = events[i];
+            }
+            
+            /* تحديث معلومات العمليات */
+            ProcessInfo procs[256];
+            int proc_count = engine->get_processes(procs, 256);
+            if (proc_count > 0) {
+                shm->process_count = proc_count;
+                memcpy(shm->processes, procs, proc_count * sizeof(ProcessInfo));
+            }
+            
+            shm->num_events = shm->event_count;
+            shm->num_processes = shm->process_count;
+            shm->timestamp = time(NULL);
+            
+            atomic_flag_clear(&shm->lock);
+        }
+        
+        usleep(10000); /* 10ms = 100 FPS جمع بيانات */
+    }
+    
+    return NULL;
+}
+
+/* ============================
+   الدالة الرئيسية
+   ============================ */
+
+int main(int argc, char **argv) {
+    /* ============================
+       معالجة الخيارات
+       ============================ */
+    
+    bool use_gpu = true;
+    bool obsidian_only = false;
+    bool headless = false;
+    const char *forced_engine = NULL;
+    const char *filter_expr = NULL;
+    unsigned int shm_key = DEFAULT_SHM_KEY;
+    
+    struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {"version", no_argument, 0, 'v'},
+        {"engine", required_argument, 0, 'e'},
+        {"nogpu", no_argument, 0, 'g'},
+        {"obsidian", no_argument, 0, 'o'},
+        {"headless", no_argument, 0, 'H'},
+        {"filter", required_argument, 0, 'f'},
+        {"shm-key", required_argument, 0, 's'},
+        {0, 0, 0, 0}
+    };
+    
+    int opt;
+    while ((opt = getopt_long(argc, argv, "hve:goHf:s:", long_options, NULL)) != -1) {
+        switch (opt) {
+            case 'h':
+                print_help();
+                return 0;
+            case 'v':
+                printf("XRAY-SCOPE v%s\n", VERSION);
+                return 0;
+            case 'e':
+                forced_engine = optarg;
+                break;
+            case 'g':
+                use_gpu = false;
+                break;
+            case 'o':
+                obsidian_only = true;
+                break;
+            case 'H':
+                headless = true;
+                break;
+            case 'f':
+                filter_expr = optarg;
+                break;
+            case 's':
+                shm_key = strtoul(optarg, NULL, 16);
+                break;
+            default:
+                print_help();
+                return 1;
+        }
+    }
+    
+    /* ============================
+       الإعدادات الأولية
+       ============================ */
+    
+    print_banner();
+    
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+    
+    /* ============================
+       تهيئة الذاكرة المشتركة
+       ============================ */
+    
+    shm = shm_init(shm_key, sizeof(SharedMemoryHeader));
+    if (!shm) {
+        fprintf(stderr, "❌ فشل تهيئة الذاكرة المشتركة\n");
+        return 1;
+    }
+    
+    /* تهيئة رأس الذاكرة المشتركة */
+    memset(shm, 0, sizeof(SharedMemoryHeader));
+    shm->magic = 0x58415259;
+    shm->version = 1;
+    atomic_flag_clear(&shm->lock);
+    
+    /* ============================
+       تهيئة الحلقة الدائرية
+       ============================ */
+    
+    ring = ring_buffer_create(16384, sizeof(SystemEvent));
+    if (!ring) {
+        fprintf(stderr, "❌ فشل إنشاء الحلقة الدائرية\n");
+        return 1;
+    }
+    
+    /* ============================
+       اكتشاف وتحميل المحرك
+       ============================ */
+    
+    engine = detect_engine(forced_engine);
+    if (!engine) {
+        fprintf(stderr, "❌ فشل تحميل المحرك\n");
+        return 1;
+    }
+    
+    /* ============================
+       تهيئة العارض
+       ============================ */
+    
+    if (!headless) {
+        renderer = renderer_create(use_gpu, obsidian_only);
+        if (!renderer) {
+            fprintf(stderr, "⚠️  فشل تهيئة العارض، التشغيل في وضع headless\n");
+            headless = true;
+        }
+    }
+    
+    /* ============================
+       تهيئة الواجهة
+       ============================ */
+    
+    if (!headless) {
+        ui = ui_create(renderer, shm, filter_expr);
+        if (!ui) {
+            fprintf(stderr, "⚠️  فشل تهيئة الواجهة، التشغيل في وضع headless\n");
+            headless = true;
+        }
+    }
+    
+    /* ============================
+       بدء خيط جمع البيانات
+       ============================ */
+    
+    pthread_t collector_thread;
+    if (pthread_create(&collector_thread, NULL, collect_data_thread, NULL) != 0) {
+        fprintf(stderr, "❌ فشل إنشاء خيط جمع البيانات\n");
+        return 1;
+    }
+    
+    /* ============================
+       الحلقة الرئيسية
+       ============================ */
+    
+    printf("🚀 XRAY-SCOPE يعمل... (اضغط Ctrl+C للإيقاف)\n\n");
+    
+    if (headless) {
+        /* وضع الخادم: فقط سجل الأحداث */
+        printf("📡 وضع headless: تسجيل الأحداث فقط\n");
+        while (running) {
+            sleep(1);
+            static uint64_t last_log = 0;
+            if (time(NULL) - last_log > 5) {
+                while (atomic_flag_test_and_set(&shm->lock));
+                printf("📊 العمليات: %d, الأحداث: %d\n", 
+                       shm->process_count, shm->event_count);
+                atomic_flag_clear(&shm->lock);
+                last_log = time(NULL);
+            }
+        }
+    } else {
+        /* الحلقة الرئيسية مع العرض */
+        while (running) {
+            ui->update(ui);
+            ui->render(ui);
+            usleep(16666); /* ~60 FPS */
+        }
+    }
+    
+    /* ============================
+       التنظيف والإيقاف
+       ============================ */
+    
+    running = false;
+    pthread_join(collector_thread, NULL);
+    
+    if (ui) ui_destroy(ui);
+    if (renderer) renderer_destroy(renderer);
+    if (engine) engine->cleanup();
+    if (ring) ring_buffer_destroy(ring);
+    if (shm) shm_destroy(shm);
+    
+    printf("\n✅ XRAY-SCOPE توقف بنجاح\n");
+    return 0;
+}
