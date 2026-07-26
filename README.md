@@ -120,6 +120,7 @@ cd xray-scope
 
 ##  Detailed Build Instructions
 
+``` bash
 **xray-scope/
 ├── src/
 │   ├── main.c              # Main entry point
@@ -140,6 +141,7 @@ cd xray-scope
 ├── build.sh                # Build script
 ├── dist/                   # Output directory
 └── README.md               # This file **
+```
 
 ## Step 2: Build Each Component
 A. Build Shared Memory Module
