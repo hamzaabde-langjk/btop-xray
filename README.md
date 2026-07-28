@@ -118,13 +118,14 @@ All in a **single-file implementation** (~2500 lines of pure C).
   <b>Media Preview</b> - Image and video preview inside GUI
 </p>
 
+[https://github.com/user-attachments/assets/d195b810-b73d-4fbd-9e82-e76a9a9a6cc9](https://github.com/user-attachments/assets/d195b810-b73d-4fbd-9e82-e76a9a9a6cc9)
 
 ---
 
 ##  Demo Video
 
 <p align="center">
-  <a href="https://github.com/user-attachments/assets/d195b810-b73d-4fbd-9e82-e76a9a9a6cc9">
+  <a href="[https://github.com/user-attachments/assets/d195b810-b73d-4fbd-9e82-e76a9a9a6cc9](https://github.com/user-attachments/assets/d195b810-b73d-4fbd-9e82-e76a9a9a6cc9)">
     <img src="xray-demo-thumbnail.png" alt="XRAY-SCOPE Demo Video" width="85%">
   </a>
   <br>
