@@ -124,7 +124,7 @@ All in a **single-file implementation** (~2500 lines of pure C).
 ##  Demo Video
 
 <p align="center">
-  <a href="https://github.com/hamzaabde-langjk/btop-xray/main/assets/xray-demo.mp4">
+  <a href="[https://github.com/hamzaabde-langjk/btop-xray/main/assets/xray-demo.mp4](https://github.com/user-attachments/assets/d195b810-b73d-4fbd-9e82-e76a9a9a6cc9)">
     <img src="xray-demo-thumbnail.png" alt="XRAY-SCOPE Demo Video" width="85%">
   </a>
   <br>
